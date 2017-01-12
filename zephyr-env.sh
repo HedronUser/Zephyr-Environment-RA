@@ -66,3 +66,6 @@ unset zephyr_answer_file
 zephyr_answer_file=~/.zephyrrc
 [ -f ${zephyr_answer_file} ] &&  . ${zephyr_answer_file};
 unset zephyr_answer_file
+
+chmod a+x ./scripts/ -R
+
