@@ -28,6 +28,7 @@ static float ess_humidity = 2;
 static float ess_pressure = 3;
 static float ess_elevation = 4;
 static float ess_temp = 5;
+static float ess_moist =6;
 
 static void blvl_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
@@ -73,6 +74,19 @@ static ssize_t read_elevation(struct bt_conn *conn, const struct bt_gatt_attr *a
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value_pt, 3);
 }
 
+static ssize_t read_moisture(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset)
+{
+
+	uint32_t moist = (int32_t)(ess_moist);	
+
+	void* value_pt = &moist;
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, value_pt, 3);
+}
+
+
+
+
 /* Automation IO Service Declaration */
 // https://nexus.zephyrproject.org/content/sites/site/org.zephyrproject.zephyr/dev/api/html/de/d63/gatt_8h.html
 static struct bt_gatt_attr attrs[] = {
@@ -89,6 +103,9 @@ static struct bt_gatt_attr attrs[] = {
 
 	BT_GATT_CHARACTERISTIC(BT_UUID_ESS_ELEVATION, BT_GATT_CHRC_READ),
 	BT_GATT_DESCRIPTOR(BT_UUID_ESS_ELEVATION, BT_GATT_PERM_READ, read_elevation, NULL, NULL),
+	
+	BT_GATT_CHARACTERISTIC(BT_UUID_ESS_MOISTURE, BT_GATT_CHRC_READ),
+	BT_GATT_DESCRIPTOR(BT_UUID_ESS_MOISTURE, BT_GATT_PERM_READ, read_moisture, NULL, NULL),
 };
 
 void ess_init(void)
@@ -114,4 +131,9 @@ void ess_elevation_notify(float* value_pf32)
 void ess_humidity_notify(float* value_pf32)
 {
 	ess_humidity = *value_pf32;
+};
+
+void ess_moisture_notify(float* value_pf32)
+{
+	ess_moist = *value_pf32;
 };

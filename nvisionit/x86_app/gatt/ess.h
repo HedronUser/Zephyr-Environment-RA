@@ -37,5 +37,5 @@ void ess_init(void);
 void ess_temperature_notify(float* value_pf32);
 void ess_pressure_notify(float* value_pf32);
 void ess_elevation_notify(float* value_pf32);
-
+void ess_moisture_notify(float* value_pf32);
 void ess_humidity_notify(float* value_pf32);

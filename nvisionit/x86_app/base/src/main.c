@@ -40,16 +40,12 @@
 #define DEVICE_NAME "nV Zephyr Environment Sensor"
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
-QUARK_SE_IPM_DEFINE(temp_sensor_ipm, 0, QUARK_SE_IPM_INBOUND);
-QUARK_SE_IPM_DEFINE(baro_sensor_ipm, 1, QUARK_SE_IPM_INBOUND);
-QUARK_SE_IPM_DEFINE(alti_sensor_ipm, 2, QUARK_SE_IPM_INBOUND);
-QUARK_SE_IPM_DEFINE(humi_sensor_ipm, 3, QUARK_SE_IPM_INBOUND);
+QUARK_SE_IPM_DEFINE(sensor_ipm, 0, QUARK_SE_IPM_INBOUND);
+
 
 // START: GATT stuff
 // GATT includes
 #include <gatt/gap.h>
-#include <gatt/hrs.h>
-#include <gatt/bas.h>
 #include <gatt/ess.h>
 
 // Define what the device 'look' like
@@ -59,8 +55,6 @@ QUARK_SE_IPM_DEFINE(humi_sensor_ipm, 3, QUARK_SE_IPM_INBOUND);
 static void start_gatt()
 {
   gap_init(DEVICE_NAME, GAP_APPEARANCE);
-  hrs_init(0x01);
-  bas_init();
   ess_init();
   dis_init(CONFIG_SOC, "Manufacturer");
 }
@@ -68,32 +62,41 @@ static void start_gatt()
 
 // START: IPM stuff
 // add callbacks for sensor messages
-void baro_ipm_callback(void *context, uint32_t id, volatile void *data)
+void ipm_callback(void *context, uint32_t id, volatile void *data)
 {
   float *sensor_data_pst = (float *)data;
-  printf("Barometric Pressure: %d kPa\n", (uint32_t)((*sensor_data_pst) / 1000));
-  ess_pressure_notify(sensor_data_pst);
-}
 
-void temp_ipm_callback(void *context, uint32_t id, volatile void *data)
-{
-  float *sensor_data_pst = (float *)data;
-  printf("Temperature: %d C\n", (uint32_t)(*sensor_data_pst));
-  ess_temperature_notify(sensor_data_pst);
-}
+  switch(id){
+    case IPM_ID_TEMPERATURE:
+      printf("Temperature: %d C\n", (uint32_t)(*sensor_data_pst));
+      ess_temperature_notify(sensor_data_pst);
+      break;
+    
+    case IPM_ID_BAROMETER:
+      printf("Barometric Pressure: %d kPa\n", (uint32_t)((*sensor_data_pst) / 1000));
+      ess_pressure_notify(sensor_data_pst);
+      break;
+   
+    case IPM_ID_ALTITUDE:
+      printf("Elevation: %d meters\n", (uint32_t)(*sensor_data_pst));
+      ess_elevation_notify(sensor_data_pst);
+      break;
+    
+    case IPM_ID_HUMIDITY:
+      printf("Humidity: %d %%\n", (uint32_t)(*sensor_data_pst));
+      ess_humidity_notify(sensor_data_pst);
+      break;
+      
+    case IPM_ID_MOISTURE:
+      printf("Moisture: %d %%\n", (uint32_t)(*sensor_data_pst));
+      ess_moisture_notify(sensor_data_pst);
+      break;
 
-void alti_ipm_callback(void *context, uint32_t id, volatile void *data)
-{
-  float *sensor_data_pst = (float *)data;
-  printf("Elevation: %d meters\n", (uint32_t)(*sensor_data_pst));
-  ess_elevation_notify(sensor_data_pst);
-}
-
-void humi_ipm_callback(void *context, uint32_t id, volatile void *data)
-{
-  float *sensor_data_pst = (float *)data;
-  printf("Humidity: %d %%\n", (uint32_t)(*sensor_data_pst));
-  ess_humidity_notify(sensor_data_pst);
+    default:
+      printk("Unknown IPm id\n");
+      break;
+  }  
+  
 }
 
 // END: IPM stuff
@@ -183,7 +186,7 @@ static struct bt_conn_auth_cb auth_cb_display = {
 void main(void)
 {
   int err;
-  struct device *baro_ipm, *temp_ipm, *alti_ipm, *humi_ipm;
+  struct device *sensor_ipm;
 
   err = bt_enable(bt_ready);
   if (err)
@@ -197,42 +200,18 @@ void main(void)
 
   printk("START: device_get_binding\n");
 
-  baro_ipm = device_get_binding("baro_sensor_ipm");
-  if (!baro_ipm)
-  {
-    printk("IPM: Device not found.\n");
-    return;
-  }
-  temp_ipm = device_get_binding("temp_sensor_ipm");
-  if (!temp_ipm)
-  {
-    printk("IPM: Device not found.\n");
-    return;
-  }
-  alti_ipm = device_get_binding("alti_sensor_ipm");
-  if (!alti_ipm)
-  {
-    printk("IPM: Device not found.\n");
-    return;
-  }
-  humi_ipm = device_get_binding("humi_sensor_ipm");
-  if (!humi_ipm)
+  sensor_ipm = device_get_binding("sensor_ipm");
+  if (!sensor_ipm)
   {
     printk("IPM: Device not found.\n");
     return;
   }
 
   printk("START: ipm_register_callback\n");
-  ipm_register_callback(baro_ipm, baro_ipm_callback, NULL);
-  ipm_register_callback(temp_ipm, temp_ipm_callback, NULL);
-  ipm_register_callback(alti_ipm, alti_ipm_callback, NULL);
-  ipm_register_callback(humi_ipm, humi_ipm_callback, NULL);
+  ipm_register_callback(sensor_ipm, ipm_callback, NULL);
 
   printk("START: ipm_set_enabled\n");
-  ipm_set_enabled(baro_ipm, 1);
-  ipm_set_enabled(temp_ipm, 1);
-  ipm_set_enabled(alti_ipm, 1);
-  ipm_set_enabled(humi_ipm, 1);
+  ipm_set_enabled(sensor_ipm, 1);
 
   task_sleep(TICKS_UNLIMITED);
 }

@@ -10,5 +10,6 @@
 #define IPM_ID_TEMPERATURE   2
 #define IPM_ID_BAROMETER     3
 #define IPM_ID_HUMIDITY      4
+#define IPM_ID_MOISTURE      5
 
 #endif

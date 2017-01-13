@@ -70,4 +70,10 @@
 #define BT_UUID_ESS_ACCELEROMETER           BT_UUID_DECLARE_16(0x3001)
 #define BT_UUID_ESS_ACCELEROMETER_VAL       0x3001
 
+/** @def BT_UUID_ESS_MOIST
+*  @brief ESS Characteristic Accelerometer - custom characteristic
+*/
+#define BT_UUID_ESS_MOISTURE           BT_UUID_DECLARE_16(0x3002)
+#define BT_UUID_ESS_MOISTURE_VAL       0x3002
+
 #endif

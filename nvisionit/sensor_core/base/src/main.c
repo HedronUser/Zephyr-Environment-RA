@@ -38,18 +38,34 @@
 
 #include <MPL3115A2.h>
 
-QUARK_SE_IPM_DEFINE(temp_sensor_ipm, 0, QUARK_SE_IPM_OUTBOUND);
-QUARK_SE_IPM_DEFINE(baro_sensor_ipm, 1, QUARK_SE_IPM_OUTBOUND);
-QUARK_SE_IPM_DEFINE(alti_sensor_ipm, 2, QUARK_SE_IPM_OUTBOUND);
-QUARK_SE_IPM_DEFINE(humi_sensor_ipm, 3, QUARK_SE_IPM_OUTBOUND);
+
+QUARK_SE_IPM_DEFINE(sensor_ipm, 0, QUARK_SE_IPM_OUTBOUND);
+
+#define ADC_DEVICE_NAME "ADC_0"
+#define ADC_CHANNEL 	10
+#define ADC_BUFFER_SIZE 4
+
+static uint8_t seq_buffer[ADC_BUFFER_SIZE];
+
+static struct adc_seq_entry sample = {
+	.sampling_delay = 12,
+	.channel_id = ADC_CHANNEL,
+	.buffer = seq_buffer,
+	.buffer_length = ADC_BUFFER_SIZE,
+};
+
+static struct adc_seq_table table = {
+	.entries = &sample,
+	.num_entries = 1,
+};
 
 void main(void)
 {
-  struct device *i2c_dev, *dht11_dev;
+  struct device *i2c_dev, *dht11_dev, *adc_dev;
 
-  struct device *temp_ipm, *baro_ipm, *alti_ipm, *humi_ipm;
+  struct device *sensor_ipm;
   int ret;
-  float temp, baro, alti, humi;
+  float temp, baro, alti, humi, moist;
 
   // Get the devices
   i2c_dev = device_get_binding("I2C_0");
@@ -64,30 +80,19 @@ void main(void)
     printf("DHT11: Device not found.\n");
   }
 
+  adc_dev = device_get_binding(ADC_DEVICE_NAME);
+  if (!adc_dev)
+  {
+    printf("Error getting ADC device.\n");
+  }
+
   // Initialize the devices
   mpl3115a2_init(i2c_dev);
+  adc_enable(adc_dev);
 
   // Get the IPM channels
-  temp_ipm = device_get_binding("temp_sensor_ipm");
-  if (!temp_ipm)
-  {
-    printk("IPM: Device not found.\n");
-  }
-
-  baro_ipm = device_get_binding("baro_sensor_ipm");
-  if (!baro_ipm)
-  {
-    printk("IPM: Device not found.\n");
-  }
-
-  alti_ipm = device_get_binding("alti_sensor_ipm");
-  if (!alti_ipm)
-  {
-    printk("IPM: Device not found.\n");
-  }
-
-  humi_ipm = device_get_binding("humi_sensor_ipm");
-  if (!humi_ipm)
+  sensor_ipm = device_get_binding("sensor_ipm");
+  if (!sensor_ipm)
   {
     printk("IPM: Device not found.\n");
   }
@@ -112,30 +117,51 @@ void main(void)
       }
     }
 
-    ret = ipm_send(temp_ipm, 1, IPM_ID_TEMPERATURE, &temp, sizeof(temp));
+    if (adc_read(adc_dev, &table) == 0) {
+      uint32_t m1 = *((uint32_t*)seq_buffer); // This is faster than bit shifting, no math, just dereference.
+      
+      uint32_t m = m1 & 0xFFF;
+      moist = 100.0 - ((m / 4096.0) * 100);
+      // printf("SS Moisture: %d - %d  -  %x\n", m, (uint32_t)moist, m1);
+    }
+
+    ret = ipm_send(sensor_ipm, 1, IPM_ID_TEMPERATURE, &temp, sizeof(temp));
     if (ret)
     {
       printk("Failed to send IPM_ID_TEMPERATURE message, error (%d)\n", ret);
     }
 
-    ret = ipm_send(baro_ipm, 1, IPM_ID_BAROMETER, &baro, sizeof(baro));
+    k_sleep(100);
+
+    ret = ipm_send(sensor_ipm, 1, IPM_ID_BAROMETER, &baro, sizeof(baro));
     if (ret)
     {
       printk("Failed to send IPM_ID_ALTITUDE message, error (%d)\n", ret);
     }
 
-    ret = ipm_send(alti_ipm, 1, IPM_ID_ALTITUDE, &alti, sizeof(alti));
+    k_sleep(100);
+
+    ret = ipm_send(sensor_ipm, 1, IPM_ID_ALTITUDE, &alti, sizeof(alti));
     if (ret)
     {
       printk("Failed to send IPM_ID_ALTITUDE message, error (%d)\n", ret);
     }
 
-    ret = ipm_send(humi_ipm, 1, IPM_ID_HUMIDITY, &humi, sizeof(humi));
+    k_sleep(100);
+
+    ret = ipm_send(sensor_ipm, 1, IPM_ID_HUMIDITY, &humi, sizeof(humi));
     if (ret)
     {
       printk("Failed to send IPM_ID_HUMIDITY message, error (%d)\n", ret);
     }
 
-    k_sleep(500);
+    k_sleep(100);
+    ret = ipm_send(sensor_ipm, 1, IPM_ID_MOISTURE, &moist, sizeof(moist));
+    if (ret)
+    {
+      printk("Failed to send IPM_ID_MOISTURE message, error (%d)\n", ret);
+    }
+
+    k_sleep(100);
   }
 }
