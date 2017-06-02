@@ -37,7 +37,7 @@
 
 #include <ipm_ids.h>
 
-#define DEVICE_NAME "nV Zephyr Environment Sensor"
+#define DEVICE_NAME "Hedron Zephyr Environment"
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
 QUARK_SE_IPM_DEFINE(sensor_ipm, 0, QUARK_SE_IPM_INBOUND);
